@@ -1,0 +1,215 @@
+import pandas as pd
+import numpy as np
+
+params_econ = {
+	'real_int_rate': 0.075,
+	'inflation_rate': 0.024,
+	'real_financial_return': 0.2,
+	'debt_financing': 0.32,
+	'new_equity_financing': 0,
+	'corp_investment_share': 0.545,
+	'incshare_capital': 0.406,
+	'capincshare_equip': 0.297,
+	'capincshare_struc': 0.275,
+	'capincshare_ip': 0.202,
+	'capincshare_rr': 0.061
+}
+
+params_corptax_base = {
+	'ccr_method': 'DDB',
+	'corptax_rate': 0.35,
+	'int_deductibility': 1,
+	'dividend_credit': 0,
+}
+
+params_iitax_base = {
+	'mtr_interest': 0.392,
+	'mtr_dividends': 0.2,
+	'mtr_capitalgains': 0.2,
+	'cg_holding_period': 5
+}
+
+def calcA(life, method, i):
+	if method == 'DDB':
+		if life == 5:
+			deductions = [0.2, 0.32, 0.192, 0.1152, 0.1152, 0.567, 0, 0]
+		else:
+			deductions = [0.1429, 0.2449, 0.1749, 0.1249, 0.0893, 0.0892, 0.0893, 0.0446]
+	elif method == 'SL':
+		if life == 5:
+			deductions = [0.1, 0.2, 0.2, 0.2, 0.2, 0.1, 0, 0]
+		else:
+			deductions = [0.07145, 0.1429, 0.1429, 0.1429, 0.1429, 0.1429, 0.1429, 0.0715]
+	else:
+		deductions = [1, 0, 0, 0, 0, 0, 0, 0]
+
+	i = (1 + r) * (1 + pi) - 1
+	pv_deductions = [0] * 8
+	for i in range(8):
+		pv_deductions[i] = deductions[i] / (1 + i)**i
+	return sum(pv_deductions)
+
+def calcEATR(econ_params, corptax_params, iitax_params, L):
+	r = econ_params['real_int_rate']
+	pi = econ_params['inflation_rate']
+	p = econ_params['real_financial_return']
+	dB = econ_params['debt_financing']
+	dN = econ_params['new_equity_financing']
+	i = (1 + r) * (1 + pi) - 1	
+	assert dB >= 0 or db <= 1
+	assert dN >= 0 or db <= 1
+	assert i > 0
+
+	mi = iitax_params['mtr_interest']
+	md = iitax_params['mtr_dividends']
+	mcg = iitax_params['mtr_capitalgains']
+	n_cg = iitax_params['cg_holding_period']
+	c = corptax_params['dividend_credit']
+	assert n_cg > 0
+	z = 1 - ((1 + i) ** n_cg * (1 - mcg) + mcg) ** (1 / n_cg) / i
+	rho = (1 - mi) * i / (1 - z)
+	gamma = (1 - md) / (1 - c) / (1 - z)
+
+	assert L in [5, 7]
+	delta = 1.0 / L
+
+	tau = corptax_params['corptax_rate']
+	phi = corptax_params['int_deductibility']
+	ccr_method = corptax_params['ccr_method']
+	assert ccr_method in ['DDB', 'SL', 'EXP']
+	A = calcA(L, ccr_method, i)
+	
+	F = gamma * dB* (1 - (1 + i * (1 - phi * tau)) / (1 + rho)) - (1 - gamma) * dN * (1 - 1 / (1 + rho))
+	p~ = (1 - tau * A) / (1 - tau) * (r + delta) - F * (1 + r) / gamma / (1 - tau) - delta
+	p = max(p, p~)
+	R = (p - p~) * gamma * (1 - tau) * (1 + pi) / (1 + rho)
+	Rstar = (p - r) / (1 + r)
+	EATR = (Rstar - R) / (p / (1 + r))
+	return EATR
+
+def investmentResponse(econ_params_ref, corptax_params_ref, iitax_params_ref, elast_type, elast_value):
+	eatr5_base = calcEATR(params_econ, params_corptax_base, params_iitax_base, 5)
+	eatr7_base = calcEATR(params_econ, params_corptax_base, params_iitax_base, 7)
+	eatr5_ref = calcEATR(params_econ_ref, params_corptax_fef, params_iitax_ref, 5)
+	eatr7_ref = calcEATR(params_econ_ref, params_corptax_fef, params_iitax_ref, 7)
+
+	assert elast_type in ['EATR', 'net of EATR', 'semi']
+	if elast_type == 'EATR':
+		assert elast_value <= 0
+		pctchg5 = eatr5_ref / eatr_base - 1
+		pctchg7 = eatr7_ref / eatr7_base - 1
+		deltaI = elast_value * (pctchg5 + pctchg7) / 2
+	elif elast_type == 'net of EATR':
+		assert elast_value >= 0
+		pctchg5 = (1 - eatr5_ref) / (1 - eatr5_base) - 1
+		pctchg7 = (1 - eatr7_ref) / (1 - eatr7_base) - 1
+		deltaI = elast_value * (pctchg5 + pctchg7) / 2
+	else:
+		assert elast_value <= 0
+		deltaI = elast_value * (eatr5_ref + eatr7_ref - eatr5_base - eatr7_base) / 2
+	return deltaI
+
+
+def growth_accounting(econ_params, deltaI=0, cap_data_path='basedata.csv', growth_data_path='growthdata.csv', response_start_year=2018)
+	assert response_start_year > 2016
+	alpha_equip = econ_params['incshare_capital'] * econ_params['capincshare_equip']
+	alpha_struc = econ_params['incshare_capital'] * econ_params['capincshare_struc']
+	alpha_ip = econ_params['incshare_capital'] * econ_params['capincshare_ip']
+	alpha_rr = econ_params['incshare_capital'] * econ_params['capincshare_rr']
+	base_data = pd.read_csv(cap_data_path')
+	K_equip_old = np.asarray(base_data['K_equip'])
+	K_struc_old = np.asarray(base_data['K_struc'])
+	K_ip_old = np.asarray(base_data['K_ip'])
+	K_rr_old = np.asarray(base_data['K_rr'])
+	I_equip_old = np.asarray(base_data['I_equip'])
+	I_struc_old = np.asarray(base_data['I_struc'])
+	I_ip_old = np.asarray(base_data['I_ip'])
+	I_rr_old = np.asarray(base_data['I_rr'])
+	D_equip = -[K_equip[i+1] - K_equip[i] - I_equip[i] for i in range(len(K_equip) - 1)]
+	D_struc = -[K_struc[i+1] - K_struc[i] - I_struc[i] for i in range(len(K_struc) - 1)]
+	D_ip = -[K_ip[i+1] - K_ip[i] - I_ip[i] for i in range(len(K_ip) - 1)]
+	D_rr = -[K_rr[i+1] - K_rr[i] - I_rr[i] for i in range(len(K_rr) - 1)]
+	delta_equip = sum([D_equip[i] * K_equip[i] for i in range(len(D_equip))]) / sum([K_equip[i] ** 2 for i in range(len(D_equip))])
+	delta_struc = sum([D_struc[i] * K_struc[i] for i in range(len(D_struc))]) / sum([K_struc[i] ** 2 for i in range(len(D_struc))])
+	delta_ip = sum([D_ip[i] * K_ip[i] for i in range(len(D_ip))]) / sum([K_ip[i] ** 2 for i in range(len(D_ip))])
+	delta_rr = sum([D_rr[i] * K_rr[i] for i in range(len(D_rr))]) / sum([K_rr[i] ** 2 for i in range(len(D_rr))])
+	corpshare = econ_params['corp_investment_share']
+
+	growth_data = pd.read_csv(growth_data_path)
+	maxyear = 2250
+
+	## set up first year (2015) for all variables
+	K_equip_base = [K_equip_old[-1]]
+	K_struc_base = [K_struc_old[-1]]
+	K_ip_base = [K_ip_old[-1]]
+	K_rr_base = [K_rr_old[-1]]
+	K_equip_ref = [K_equip_old[-1]]
+	K_struc_ref = [K_struc_old[-1]]
+	K_ip_ref = [K_ip_old[-1]]
+	K_rr_ref = [K_rr_old[-1]]
+	I_equip_base = [I_equip_old[-1]]
+	I_struc_base = [I_struc_old[-1]]
+	I_ip_base = [I_ip_old[-1]]
+	I_rr_base = [I_rr_old[-1]]
+	I_equip_ref = [I_equip_old[-1]]
+	I_struc_ref = [I_struc_old[-1]]
+	I_ip_ref = [I_ip_old[-1]]
+	I_rr_ref = [I_rr_old[-1]]
+	GDP_base = [growth_data['gdp'][0]]
+	govshare = [growth_data['govshare'][0]]
+	dy_equip = [0]
+	dy_struc = [0]
+	dy_ip = [0]
+	dy_rr = [0]
+	dy_tot = [0]
+	gov_inc = [govshare[0] * GDP_base[0]]
+	priv_inc_base = [(1 - govshare[0]) * GDP_base[0]]
+	priv_inc_ref = [(1 - govshare[0]) * GDP_base[0]]
+	GDP_ref = gov_inc + priv_inc_ref
+	## extrapolate forward
+	for i in range(1, maxyear - 2015):
+		if i + 2015 < 2028:
+			GDP_base.append(growth_data['gdp'][i])
+			govshare.append(growth_data['govshare'][i])
+		elif i + 2015 < 2048:
+			GDP_base.append(GDP_base[i-1] * (1 + growth_data['gdp_growth'][i]))
+			govshare.append(govshare[i-1])
+		else:
+			GDP_base.append(GDP_base[i-1] * (1 + 0.02))
+			govshare.append(govshare[i-1])
+		K_equip_base.append(K_equip_base[i-1] * (1 - delta_equip) + I_equip_base[i-1])
+		K_struc_base.append(K_struc_base[i-1] * (1 - delta_struc) + I_struc_base[i-1])
+		K_ip_base.append(K_ip_base[i-1] * (1 - delta_ip) + I_ip_base[i-1])
+		K_rr_base.append(K_rr_base[i-1] * (1 - delta_rr) + I_rr_base[i-1])
+		K_equip_ref.append(K_equip_ref[i-1] * (1 - delta_equip) + I_equip_ref[i-1])
+		K_struc_ref.append(K_struc_ref[i-1] * (1 - delta_struc) + I_struc_ref[i-1])
+		K_ip_ref.append(K_ip_ref[i-1] * (1 - delta_ip) + I_ip_ref[i-1])
+		K_rr_ref.append(K_rr_ref[i-1] * (1 - delta_rr) + I_rr_ref[i-1])
+		I_equip_base.append(I_equip_base[i-1] * GDP_base[i] / GDP_base[i-1])
+		I_struc_base.append(I_struc_base[i-1] * GDP_base[i] / GDP_base[i-1])
+		I_ip_base.append(I_ip_base[i-1] * GDP_base[i] / GDP_base[i-1])
+		I_rr_base.append(I_rr_base[i-1] * GDP_base[i] / GDP_base[i-1])
+		if i + 2015 < response_start_year:
+			I_equip_ref.append(I_equip_base[i])
+			I_struc_ref.append(I_struc_base[i])
+			I_ip_ref.append(I_ip_base[i])
+			I_rr_ref.append(I_rr_base[i])
+		else:
+			I_equip_ref.append(I_equip_base[i] * (1 + deltaI * corpshare))
+			I_struc_ref.append(I_struc_base[i] * (1 + deltaI * corpshare))
+			I_ip_ref.append(I_ip_base[i] * (1 + deltaI * corpshare))
+			I_rr_ref.append(I_rr_base[i] * (1 + deltaI * corpshare))
+		dy_equip.append((K_equip_ref[i] / K_equip_ref[i-1] - K_equip_base[i] / K_equip_base[i-1]) * alpha_equip)
+		dy_struc.append((K_struc_ref[i] / K_struc_ref[i-1] - K_struc_base[i] / K_struc_base[i-1]) * alpha_struc)
+		dy_ip.append((K_ip_ref[i] / K_ip_ref[i-1] - K_ip_base[i] / K_ip_base[i-1]) * alpha_ip)
+		dy_rr.append((K_rr_ref[i] / K_rr_ref[i-1] - K_rr_base[i] / K_rr_base[i-1]) * alpha_rr)
+		dy_tot.append(dy_equip[i] + dy_struc[i] + dy_ip[i] + dy_rr[i])
+		gov_inc.append(govshare[i] * GDP_base[i])
+		priv_inc_base.append((1 - govshare[i]) * GDP_base[i])
+		priv_inc_ref.append(priv_inc_ref[i-1] * (priv_inc_base[i] / priv_inc_base[i-1] + dy_tot[i]))
+		GDP_ref.append(gov_inc[i] + priv_inc_ref[i])
+	change_steadystate = GDP_ref[-1] / GDP_base[-1] - 1
+	change_2028 = GDP_ref[13] / GDP_base[13] - 1
+	change_growth_2018_2028 = (GDP_ref[13] / GDP_ref[3])**0.1 - (GDP_base[13] / GDP_base[3])**0.1
+	return [change_steadystate, change_2028, change_growth_2018_2028)
+

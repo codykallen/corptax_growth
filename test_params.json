@@ -1,0 +1,20 @@
+{
+    "real_int_rate": {
+        "param_type": "economic assumption",
+        "description": "real interest rate (relevant to the investment)",
+        "source": "assumed",
+        "value": [0.075]
+    },
+    "ccr_method": {
+        "param_type": "corporate tax baseline",
+        "description": "Capital cost recovery method",
+        "source": "",
+        "value": ["DDB"]
+    },
+    "mtr_interest": {
+        "param_type": "individual income tax baseline",
+        "description": "MTR on marginal investor's interest income",
+        "source": "",
+        "value": [0.392]
+    }
+}

@@ -1,0 +1,116 @@
+{
+    "real_int_rate": {
+        "param_type": "economic assumption",
+        "description": "real interest rate (relevant to the investment)",
+        "source": "assumed",
+        "value": [0.075]
+    },
+    "inflation_rate": {
+        "param_type": "economic assumption",
+        "description": "Expected annual inflation rate",
+        "source": "assumed based on CBO forcast of CPI inflation",
+        "value": [0.024]
+    },
+    "real_financial_return": {
+        "param_type": "economic assumption",
+        "description": "Real gross rate of return on an investment, including supernormal returns",
+        "source": "assumed",
+        "value": [0.2]
+    },
+    "debt_financing": {
+        "param_type": "economic assumption",
+        "description": "Debt financing share of the investment",
+        "source": "based on historical data",
+        "value": [0.32]
+    },
+    "new_equity_financing": {
+        "param_type": "economic assumption",
+        "description": "New equity (not retained earnings) financing share of the investment",
+        "source": "assumed",
+        "value": [0.0]
+    },
+    "corp_investment_share": {
+        "param_type": "economic assumption",
+        "description": "C-corporation share of private fixed investment",
+        "source": "based on calculation from Jason Debacker",
+        "value": [0.545]
+    },
+    "incshare_capital": {
+        "param_type": "economic assumption",
+        "description": "Share of total income accruing to capital",
+        "source": "BLS data for 2015",
+        "value": [0.406]
+    },
+    "capincshare_equip": {
+        "param_type": "economic assumption",
+        "description": "Share of capital income accruing to equipment",
+        "source": "BLS data for 2015",
+        "value": [0.297]
+    },
+    "capincshare_struc": {
+        "param_type": "economic assumption",
+        "description": "Share of capital income accruing to structures",
+        "source": "BLS data for 2015",
+        "value": [0.275]
+    },
+    "capincshare_ip": {
+        "param_type": "economic assumption",
+        "description": "Share of capital income accruing to intellectual property",
+        "source": "BLS data for 2015",
+        "value": [0.202]
+    },
+    "capincshare_rr": {
+        "param_type": "economic assumption",
+        "description": "Share of capital income accruing to rental residential capital",
+        "source": "BLS data for 2015",
+        "value": [0.061]
+    },
+    "ccr_method": {
+        "param_type": "corporate tax baseline",
+        "description": "Capital cost recovery method",
+        "source": "",
+        "value": ["DDB"]
+    },
+    "corptax_rate": {
+        "param_type": "corporate tax baseline",
+        "description": "Statutory corporate income tax rate",
+        "source": "",
+        "value": [0.35]
+    },
+    "int_deductibility": {
+        "param_type": "corporate tax baseline",
+        "description": "Fraction of interest paid deductible",
+        "source": "",
+        "value": [1.0]
+    },
+    "dividend_credit": {
+        "param_type": "corporate tax baseline",
+        "description": "Rate of credit available on dividends paid",
+        "source": "",
+        "value": [0]
+    },
+    "mtr_interest": {
+        "param_type": "individual income tax baseline",
+        "description": "MTR on marginal investor's interest income",
+        "source": "",
+        "value": [0.392]
+    },
+    "mtr_dividends": {
+        "param_type": "individual income tax baseline",
+        "description": "MTR on marginal investor's dividend income",
+        "source": "",
+        "value": [0.2]
+    },
+    "mtr_capitalgains": {
+        "param_type": "individual income tax baseline",
+        "description": "MTR on marginal investor's capital gains (not accrual effective)",
+        "source": "",
+        "value": []
+    },
+    "cg_holding_period": {
+        "param_type": "individual income tax baseline",
+        "description": "Equity holding period for marginal investor",
+        "source": "",
+        "value": [5]
+    }
+}
